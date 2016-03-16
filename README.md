@@ -1,5 +1,3 @@
-# Reactive [![Build Status](https://travis-ci.org/unfold/reactive.png?branch=master)](https://travis-ci.org/unfold/reactive)
-
 Sample [React](http://facebook.github.io/react) application.
 
 ## Features

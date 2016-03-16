@@ -1,92 +1,60 @@
 'use strict';
 
-var superagent = require('superagent')
+var superagent = require('superagent'),
+    flat = require('flat');
 
 var Store = module.exports = function(data) {
   this.data = data || {}
 }
 
-Store.prototype.get = function(key, value) {
-  if (typeof key == 'object') {
-    return this.getManifest(key)
-  } else {
-    return this.getKey(key)
-  }
+Store.prototype.get = function(request) {
+  return this.getKey(this.generateCacheKey(request))
 }
 
-Store.prototype.set = function(key, value) {
-  if (typeof key == 'object') {
-    this.setObject(key)
-  } else if (value !== undefined) {
+Store.prototype.set = function(request, value) {
+  var key = this.generateCacheKey(request);
+  if (value !== undefined) {
     this.data[key] = value
   } else {
     delete this.data[key]
   }
 }
 
-Store.prototype.fetch = function(url, callback) {
-  if (typeof url == 'object')  {
-    return this.fetchManifest(url, callback)
-  } else {
-    return this.fetchUrl(url, callback)
-  }
+Store.prototype.fetch = function(request, callback) {
+  return this.fetchRequest(request, callback);
 }
 
-Store.prototype.getManifest = function(manifest) {
-  var result
-
-  for (var key in manifest) {
-    var value = this.get(key)
-
-    if (value !== undefined) {
-      if (!result) result = {}
-
-      result[key] = value
-    }
-  }
-
-  return result
-}
-
-Store.prototype.getKey = function(key) {
+Store.prototype.getKey = function(key, query) {
   return this.data[key]
 }
 
-Store.prototype.setObject = function(data) {
-  for (var key in data) {
-    this.set(key, key[data])
-  }
-}
-
-Store.prototype.fetchManifest = function(manifest, callback) {
-  var store = this,
-      pending = []
-
-  for (var key in manifest) {
-    pending.push(key)
+Store.prototype.generateCacheKey = function(request){
+  var flatRequest = flat.flatten(request);
+  var keys = Object.keys(flatRequest);
+  keys.sort(function(a,b){
+    return a > b ? 1 : -1;
+  });
+  var cacheKey = [];
+  for (var i = 0; i < keys.length; i++) {
+    cacheKey.push(keys[i],flatRequest[keys[i]]);
   }
 
-  var remaining = pending.length,
-      running = true
+  return cacheKey.join("_");
 
-  pending.forEach(function(key) {
-    store.fetch(manifest[key], function(err, data) {
-      if (!running) return
-      if (err) return callback(err)
+};
 
-      store.set(key, data)
+Store.prototype.fetchRequest = function(request, callback) {
+  var url = request.url,
+      query = request.query || {},
+      self = this;
 
-      if (!--remaining) callback(null, store.getManifest(manifest))
-    })
-  })
-}
-
-Store.prototype.fetchUrl = function(url, callback) {
-  return superagent.get(url, function(err, res) {
-    if (err) return callback(err)
-
-    callback(null, res.body)
-  })
+  superagent(url)
+        .query(query)
+        .end(function (err, res) {
+            if (err) return callback(err);
+            self.set(request, res.body);
+            callback(null, res.body)
+        });
 }
 
 Store.prototype.loadCache = function(data) {

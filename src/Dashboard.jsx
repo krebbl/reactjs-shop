@@ -7,7 +7,7 @@ var React = require('react'),
 
 function fetchData(params, query) {
   return {
-    motd: 'http://localhost:/api'
+    motd: 'http://localhost:3000/api'
   }
 }
 
@@ -33,7 +33,7 @@ module.exports = React.createClass({
   },
 
   render: function() {
-    var motd
+    var motd;
 
     if (this.state.data) {
       motd = <span className="motd">Message of the day: {this.state.data.motd.message}</span>
